@@ -148,6 +148,10 @@ def parse_comma_separated_list(s):
 @click.option('--dlr',          help='D learning rate', metavar='FLOAT',                        type=click.FloatRange(min=0), default=0.002, show_default=True)
 @click.option('--map-depth',    help='Mapping network depth  [default: varies]', metavar='INT', type=click.IntRange(min=1))
 @click.option('--mbstd-group',  help='Minibatch std group size', metavar='INT',                 type=click.IntRange(min=1), default=4, show_default=True)
+@click.option('--min_scale',    help='Minimum scale for augmentations', metavar='FLOAT',        type=click.FloatRange(min=0, max=1), default=0.3, show_default=True)
+@click.option('--max_scale',    help='Maxiimum scale for augmentations', metavar='FLOAT',       type=click.FloatRange(min=0, max=1), default=1, show_default=True)
+@click.option('--min_theta',    help='Minimum theta for augmentations', metavar='FLOAT',        type=click.FloatRange(min=0, max=6.28), default=0, show_default=True)
+@click.option('--max_theta',    help='Maxiimum theta for augmentations', metavar='FLOAT',       type=click.FloatRange(min=0, max=6.28), default=6.28, show_default=True)
 
 # Misc settings.
 @click.option('--desc',         help='String to include in result dir name', metavar='STR',     type=str)
@@ -232,7 +236,9 @@ def main(**kwargs):
 
     # Base configuration.
     c.ema_kimg = c.batch_size * 10 / 32
-    if opts.cfg == 'stylegan2':
+    if opts.cfg == 'stylegan1':
+        c.G_kwargs.class_name = 'training.networks_stylegan1.Generator'
+    elif opts.cfg == 'stylegan2':
         c.G_kwargs.class_name = 'training.networks_stylegan2.Generator'
         c.loss_kwargs.style_mixing_prob = 0.9 # Enable style mixing regularization.
         c.loss_kwargs.pl_weight = 2 # Enable path length regularization.

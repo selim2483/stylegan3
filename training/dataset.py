@@ -20,6 +20,24 @@ try:
     import pyspng
 except ImportError:
     pyspng = None
+    
+import torch.nn.functional as F
+import torchvision.transforms.functional as TF
+
+def augment(real:torch.Tensor, scale:torch.Tensor, theta:torch.Tensor) :
+    aff = torch.stack(
+        (torch.stack(
+            (torch.cos(theta) * scale, -torch.sin(theta) * scale, 0 * scale),
+            dim=1),
+        torch.stack(
+            (torch.sin(theta) * scale, torch.cos(theta) * scale, 0 * scale),
+            dim=1)
+        ),
+        dim=1)
+    grid = F.affine_grid(aff, real.size())
+    t_real = F.grid_sample(real, grid)
+    t_real = TF.center_crop(t_real, 256)
+    return t_real
 
 #----------------------------------------------------------------------------
 
@@ -31,12 +49,20 @@ class Dataset(torch.utils.data.Dataset):
         use_labels  = False,    # Enable conditioning labels? False = label dimension is zero.
         xflip       = False,    # Artificially double the size of the dataset via x-flips. Applied after max_size.
         random_seed = 0,        # Random seed to use when applying max_size.
+        min_scale   = 0.3,
+        max_scale   = 1.,
+        min_theta   = 0.,
+        max_theta   = 2 * np.pi
     ):
         self._name = name
         self._raw_shape = list(raw_shape)
         self._use_labels = use_labels
         self._raw_labels = None
         self._label_shape = None
+        self.min_scale = min_scale
+        self.max_scale = max_scale
+        self.min_theta = min_theta
+        self.max_theta = max_theta
 
         # Apply max_size.
         self._raw_idx = np.arange(self._raw_shape[0], dtype=np.int64)
@@ -92,6 +118,11 @@ class Dataset(torch.utils.data.Dataset):
         if self._xflip[idx]:
             assert image.ndim == 3 # CHW
             image = image[:, :, ::-1]
+        scale = (torch.rand(1) 
+                 * (self.max_scale - self.min_scale) + self.min_scale)
+        theta = (torch.rand(1) 
+                 * (self.max_theta - self.min_theta) + self.min_theta)
+        image = augment(image, scale, theta)
         return image.copy(), self.get_label(idx)
 
     def get_label(self, idx):
